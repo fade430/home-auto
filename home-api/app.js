@@ -108,6 +108,7 @@ app.get('/api/device/all',function(req,res){
                 id:row.ID
                 ,name:row.NAME
                 ,description:row.Description
+                ,mcuid:row.MCUID
             }
             devices.list.push(mcu);
         });
@@ -125,11 +126,12 @@ app.get('/api/device/:id',function(req,res){
             id:row.ID
             ,name:row.NAME
             ,description:row.Description
+            ,mcuid:row.MCUID
         });
         res.send(JSON.stringify(device));
     });
 });
-app.get('/api/device/set/:id/:state',function(req,res){
+app.get('/api/device/setState/:id/:state',function(req,res){
     db.each('select * from device where ID=(?)',[req.params.id],function(err,row){
         var device = {
             list:[]
@@ -138,6 +140,17 @@ app.get('/api/device/set/:id/:state',function(req,res){
             id:row.ID
             ,name:row.NAME
             ,description:row.Description
+            ,mcuid:row.MCUID
+        });
+        db.each('select * from mcu where ID(?)'[device.list[0].mcuid],function(err,row){
+            var mcu = {
+                list:[]
+            };
+            device.list.push({
+                id:row.ID
+                ,name:row.NAME
+                ,description:row.Description
+            });
         });
     });
 });
