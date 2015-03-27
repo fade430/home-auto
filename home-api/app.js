@@ -32,11 +32,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 //app.use('/hello', hello);
 app.use('/', routes);
-app.use('/users', users);
-app.get('/hello', function(req, res){
-    res.render('hello', {title: 'fuck',list: ['5','4','9','1']});
-});
 
+//var room = require('./routes/room');
+//app.use('/api/rooms', room);
+//room getters
 app.get('/api/rooms/all',function(req,res){
     var rooms = {};
     rooms.list = [];
@@ -68,6 +67,7 @@ app.get('/api/rooms/:id', function(req,res){
     });
 });
 
+//mcu getters
 app.get('/api/mcu/all',function(req,res){
     var mcus = {};
     mcus.list = [];
@@ -77,6 +77,9 @@ app.get('/api/mcu/all',function(req,res){
                 id:row.ID
                 ,name:row.NAME
                 ,description:row.Description
+                ,roomID:row.RoomID
+                ,ipaddress:IPAddress
+                ,macAdress:MACAddress
             }
             mcus.list.push(mcu);
         });
@@ -94,11 +97,15 @@ app.get('/api/mcu/:id',function(req,res){
             id:row.ID
             ,name:row.NAME
             ,description:row.Description
+            ,roomID:row.RoomID
+            ,ipaddress:IPAddress
+            ,macAdress:MACAddress
         });
         res.send(JSON.stringify(mcu));
     });
 });
 
+//device getters
 app.get('/api/device/all',function(req,res){
     var mcus = {};
     devices.list = [];
@@ -109,6 +116,8 @@ app.get('/api/device/all',function(req,res){
                 ,name:row.NAME
                 ,description:row.Description
                 ,mcuid:row.MCUID
+                ,pin:row.Pin
+                ,state:row.State
             }
             devices.list.push(mcu);
         });
@@ -127,10 +136,15 @@ app.get('/api/device/:id',function(req,res){
             ,name:row.NAME
             ,description:row.Description
             ,mcuid:row.MCUID
+            ,pin:row.Pin
+            ,state:row.State
         });
         res.send(JSON.stringify(device));
     });
 });
+
+//start of change functions,
+//exsposed to allow people to change state of device
 app.get('/api/device/setState/:id/:state',function(req,res){
     db.each('select * from device where ID=(?)',[req.params.id],function(err,row){
         var device = {
@@ -141,19 +155,41 @@ app.get('/api/device/setState/:id/:state',function(req,res){
             ,name:row.NAME
             ,description:row.Description
             ,mcuid:row.MCUID
+            ,pin:row.pin
+            ,state:row.State
         });
-        db.each('select * from mcu where ID(?)'[device.list[0].mcuid],function(err,row){
+        db.each('select * from mcu where ID=(?)',[1],function(err,row2){
             var mcu = {
                 list:[]
             };
-            device.list.push({
-                id:row.ID
-                ,name:row.NAME
-                ,description:row.Description
+            mcu.list.push({
+                id:row2.ID
+                ,name:row2.NAME
+                ,description:row2.Description
+                ,roomID:row2.RoomID
+                ,ipaddress:row2.IPAddress
+                ,macAdress:row2.MACAddress
+                ,options:JSON.parse(row2.Options)
+            });
+            var http = require('http');
+            console.log(mcu.list[0].ipaddress);
+            console.log(mcu.list[0].options.ipaddress);
+            http.get(mcu.list[0].ipaddress,function(result){
+                result.chunkdata = "";
+                result.on('data',function(chunk){
+                    this.chunkdata += chunk;
+                });
+                result.on('end',function(){
+                    res.send(this.chunkdata);
+                });
+            }).on('error',function(e){
+                console.log(e.message);
             });
         });
     });
 });
+
+function updateDevice(){}
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
     var err = new Error('Not Found');
@@ -164,7 +200,7 @@ app.use(function(req, res, next) {
 // error handlers
 
 // development error handler
-// will print stacktrace
+//will print stacktrace
 if (app.get('env') === 'development') {
     app.use(function(err, req, res, next) {
         res.status(err.status || 500);
